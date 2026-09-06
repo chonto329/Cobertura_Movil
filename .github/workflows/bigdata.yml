@@ -1,0 +1,70 @@
+name: Cobertura Movil
+
+on:
+  push:
+    branches: [ "master" ]
+  schedule:
+    - cron: "0 4 * * *"  # Ejecución automática diaria (04:00 UTC)
+  workflow_dispatch:     # Permite ejecución manual desde GitHub
+
+jobs:
+  ejecutar-etl-y-verificar:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 1. Descargar Código del Repositorio
+        uses: actions/checkout@v4
+
+      - name: 2. Configurar Entorno Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: 3. Instalar Dependencias Requeridas
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; else pip install requests pandas openpyxl pyodbc; fi
+
+      - name: 4. Ejecutar Script de Ingesta ETL
+        run: python ./src/ingestion.py
+
+      - name: Instalar ODBC Driver 17 para SQL Server
+        run: |
+            sudo bash -c 'curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg'
+            sudo bash -c 'curl https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/prod.list > /etc/apt/sources.list.d/mssql-release.list'
+            sudo apt-get update
+            sudo ACCEPT_EULA=Y apt-get install -y msodbcsql17
+
+      - name: 5. Verificar Creación de BDD y Archivos de Evidencia
+        run: |
+          echo "=== VERIFICANDO EXISTENCIA DE ARTEFACTOS ==="
+          
+          # Validación de Base de Datos SQLite
+          if [ -f "src/static/db/ingestion.db" ]; then
+            echo "[OK] Base de datos 'src/static/db/ingestion.db' creada exitosamente."
+          else
+            echo "[ERROR] No se encontró la base de datos SQL Server." && exit 1
+          fi
+
+          # Validación del Archivo de Muestra (Excel/CSV)
+          if [ -f "src/static/auditoria/ingestion.xlsx" ] || [ -f "src/static/auditoria/ingestion.csv" ]; then
+            echo "[OK] Archivo de muestra generado correctamente en carpeta 'src/static/auditoria/'."
+          else
+            echo "[ERROR] No se encontró el archivo de muestra." && exit 1
+          fi
+
+          # Validación del Archivo de Auditoría (.txt)
+          if [ -f "src/static/auditoria/auditoria_ingesta.txt" ]; then
+            echo "[OK] Archivo de auditoría 'src/static/auditoria/auditoria_ingesta.txt' generado correctamente."
+          else
+            echo "[ERROR] No se encontró el archivo de auditoría." && exit 1
+          fi
+
+      - name: 6. Publicar Artefactos Generados (Evidencias y BDD)
+        uses: actions/upload-artifact@v4
+        with:
+          name: evidencias-etl-cobertura
+          path: |
+            src/static/auditoria/
+            src/static/db/ingestion.db
+          retention-days: 14
