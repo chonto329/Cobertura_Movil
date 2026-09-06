@@ -10,7 +10,7 @@ SERVER = os.getenv("SQL_SERVER", r"DESKTOP-26TKEMA\JUANOSPINA")
 DATABASE = os.getenv("SQL_DATABASE", "db_cobertura_movil")
 USER = os.getenv("SQL_USER", "")
 PASSWORD = os.getenv("SQL_PASSWORD", "")
-DRIVER = os.getenv("ODBC_DRIVER", "ODBC Driver 17 for SQL Server")
+DRIVER = os.getenv("ODBC_DRIVER", "ODBC Driver 18 for SQL Server")
 
 CONN_STR = (
     f"DRIVER={{{DRIVER}}};SERVER={SERVER};DATABASE={DATABASE};"
